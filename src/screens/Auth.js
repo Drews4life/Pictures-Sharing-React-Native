@@ -7,12 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  ActivityIndicator
 } from 'react-native';
 import {Actions} from 'react-native-router-flux';
 import {connect} from 'react-redux';
 
-import {tryAuth} from '../actions';
+import {loginUser, signUpUser, clearAuthError} from '../actions';
 import DefaultInput from '../components/DefaultInput';
 import RoundButton from '../components/RoundButton';
 import validate from '../utility/validation';
@@ -51,16 +52,22 @@ class Auth extends Component {
   };
 
   loginHandler = () => {
+    this.props.clearErrors();
     const {email, password} = this.state.controls;
     const authData = {
       email: email.value,
       password: password.value
     };
-    this.props.onLogin(authData);
-    Actions.tabber({type: 'reset'});
+    if(this.state.authMode === 'login') {
+      this.props.onLogin(authData);
+    } else {
+      this.props.onSignUp(authData);
+    }
+    console.log('autherror: ' + this.props.authError);
   }
 
   updateInputState = (key, mainValue) => {
+    this.props.clearErrors();
     let connectedValue = {};
 
     if(this.state.controls[key].validationRules.equalTo) {
@@ -100,6 +107,8 @@ class Auth extends Component {
   }
 
   switchAuthModeHandler = () => {
+    this.props.clearErrors();
+    console.log('autherror check: ' + this.props.authError);
     this.setState(previousState => {
       return {
         authMode: previousState.authMode === 'login' ? 'signup' : 'login'
@@ -107,9 +116,35 @@ class Auth extends Component {
     })
   }
 
+  errorMessageHandler = () => {
+    if(this.props.authError !== '') {
+      return (
+        <View style={styles.errorContainer}>
+        <Text style={styles.authErrorText}>{this.props.authError}</Text>
+        </View>
+      );
+    }
+
+
+  }
+
   render () {
     var {email, password, confirmPassword} = this.state.controls;
     let confirmPasswordControl = null;
+    let logBtn = (
+      <View style={styles.btnContainer}>
+      <RoundButton
+        disabled={false}
+        Method={this.switchAuthModeHandler} >
+          Switch to {this.state.authMode === 'login' ? 'Sign up' : 'Login'}
+      </RoundButton>
+      <RoundButton
+        disabled={!email.valid || !password.valid || !confirmPassword.valid && this.state.authMode === 'signup'}
+        Method={this.loginHandler} >
+          {this.state.authMode === 'login' ? 'Log in' : 'Sign up'}
+      </RoundButton>
+    </View>
+    );
 
     if(this.state.authMode === 'signup') {
       confirmPasswordControl = (
@@ -122,6 +157,15 @@ class Auth extends Component {
           />
       );
     }
+
+    if(this.props.isFetching) {
+      logBtn = (
+        <View style={styles.btnContainer}>
+          <ActivityIndicator size='large' color='blue'/>
+        </View>
+      );
+    }
+
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.containerMain}>
@@ -146,19 +190,11 @@ class Auth extends Component {
             {confirmPasswordControl}
           </View>
 
+          {this.errorMessageHandler()}
 
-          <View style={styles.btnContainer}>
-            <RoundButton
-              disabled={false}
-              Method={this.switchAuthModeHandler} >
-                Switch to {this.state.authMode === 'login' ? 'Sign up' : 'Login'}
-            </RoundButton>
-            <RoundButton
-              disabled={!email.valid || !password.valid || !confirmPassword.valid && this.state.authMode === 'signup'}
-              Method={this.loginHandler} >
-                {this.state.authMode === 'login' ? 'Log in' : 'Sign up'}
-            </RoundButton>
-          </View>
+
+            {logBtn}
+
         </View>
       </TouchableWithoutFeedback>
     );
@@ -189,13 +225,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 155,
     height: 100,
+  },
+  authErrorText: {
+    fontSize: 15,
+    color: 'red',
+    padding: 5
+  },
+  errorContainer: {
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'red',
+    borderRadius: 50,
+    backgroundColor: '#F1A9A0',
+    marginBottom: 5
   }
 });
 
+const mapStateToProps = state => {
+  return {
+    authError: state.auth.error,
+    isFetching: state.auth.isFetchingData
+  };
+};
+
 const mapDispatchToProps = dispatch => {
   return {
-    onLogin: (authData) => dispatch(tryAuth(authData))
+    onLogin: (authData) => dispatch(loginUser(authData)),
+    onSignUp: (authData) => dispatch(signUpUser(authData)),
+    clearErrors: () => dispatch(clearAuthError())
   }
 };
 
-export default connect(null, mapDispatchToProps)(Auth);
+export default connect(mapStateToProps, mapDispatchToProps)(Auth);

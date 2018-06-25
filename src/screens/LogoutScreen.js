@@ -1,10 +1,12 @@
 import React, {Component} from 'react';
 import {View, Text, Modal, TouchableOpacity, StyleSheet} from 'react-native';
 import {Actions} from 'react-native-router-flux';
+import firebase from 'firebase';
 
 export default class LogoutScreen extends Component {
 
   logOutHandler = () => {
+    firebase.auth().signOut();
     Actions.LoginBoard({type: 'reset'});
   }
 
